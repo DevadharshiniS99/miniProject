@@ -3,6 +3,8 @@
 // be placed in the file, and deletes data previously in the file.
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 // clientData structure definition
 struct clientData
 {
@@ -10,7 +12,7 @@ struct clientData
     char lastName[15];    // account last name
     char firstName[10];   // account first name
     double balance;       // account balance
-};                        // end structure clientData
+}; // end structure clientData
 
 // prototypes
 unsigned int enterChoice(void);
@@ -18,6 +20,10 @@ void textFile(FILE *readPtr);
 void updateRecord(FILE *fPtr);
 void newRecord(FILE *fPtr);
 void deleteRecord(FILE *fPtr);
+void listAllAccounts(FILE *fPtr);
+void searchByLastName(FILE *fPtr);
+void showStatistics(FILE *fPtr);
+int validateAccountNumber(unsigned int account);
 
 int main(int argc, char *argv[])
 {
@@ -32,7 +38,7 @@ int main(int argc, char *argv[])
     }
 
     // enable user to specify action
-    while ((choice = enterChoice()) != 5)
+    while ((choice = enterChoice()) != 8)
     {
         switch (choice)
         {
@@ -52,12 +58,24 @@ int main(int argc, char *argv[])
         case 4:
             deleteRecord(cfPtr);
             break;
+        case 5:
+            listAllAccounts(cfPtr);
+            break;
+
+        case 6:
+            searchByLastName(cfPtr);
+            break;
+
+        case 7:
+            showStatistics(cfPtr);
+            break;
+
         // display if user does not select valid choice
         default:
             puts("Incorrect choice");
             break;
         } // end switch
-    }     // end while
+    } // end while
 
     fclose(cfPtr); // fclose closes the file
 } // end main
@@ -91,10 +109,10 @@ void textFile(FILE *readPtr)
                 fprintf(writePtr, "%-6d%-16s%-11s%10.2f\n", client.acctNum, client.lastName, client.firstName,
                         client.balance);
             } // end if
-        }     // end while
+        } // end while
 
         fclose(writePtr); // fclose closes the file
-    }                     // end else
+    } // end else
 } // end function textFile
 
 // update balance in record
@@ -131,7 +149,7 @@ void updateRecord(FILE *fPtr)
 
         // move file pointer to correct record in file
         // move back by 1 record length
-        fseek(fPtr, sizeof (struct clientData), SEEK_CUR);
+        fseek(fPtr, sizeof(struct clientData), SEEK_CUR);
         // write updated record over old record in file
         fwrite(&client, sizeof(struct clientData), 1, fPtr);
     } // end else
@@ -211,8 +229,96 @@ unsigned int enterChoice(void)
                  "2 - update an account\n"
                  "3 - add a new account\n"
                  "4 - delete an account\n"
-                 "5 - end program\n? ");
+                 "5 - list all accounts\n"
+                 "6 - search by last name\n"
+                 "7 - show statistics\n"
+                 "8 - end program\n? ");
 
     scanf("%u", &menuChoice); // receive choice from user
     return menuChoice;
 } // end function enterChoice
+void listAllAccounts(FILE *fPtr)
+{
+    struct clientData client;
+
+    rewind(fPtr);
+
+    printf("\n%-6s%-16s%-11s%10s\n",
+           "Acct", "Last Name", "First Name", "Balance");
+
+    while (fread(&client, sizeof(struct clientData), 1, fPtr) == 1)
+    {
+        if (client.acctNum != 0)
+        {
+            printf("%-6d%-16s%-11s%10.2f\n",
+                   client.acctNum,
+                   client.lastName,
+                   client.firstName,
+                   client.balance);
+        }
+    }
+}
+void searchByLastName(FILE *fPtr)
+{
+    char name[15];
+    struct clientData client;
+    int found = 0;
+
+    printf("Enter last name to search: ");
+    scanf("%14s", name);
+
+    rewind(fPtr);
+
+    while (fread(&client, sizeof(struct clientData), 1, fPtr) == 1)
+    {
+        if (strcmp(client.lastName, name) == 0)
+        {
+            printf("Found: %d %s %s %.2f\n",
+                   client.acctNum,
+                   client.lastName,
+                   client.firstName,
+                   client.balance);
+            found = 1;
+        }
+    }
+
+    if (!found)
+        printf("No matching record found.\n");
+}
+void showStatistics(FILE *fPtr)
+{
+    struct clientData client;
+    int totalAccounts = 0;
+    double totalBalance = 0;
+    double maxBalance = 0;
+    double minBalance = 0;
+    int first = 1;
+
+    rewind(fPtr);
+
+    while (fread(&client, sizeof(struct clientData), 1, fPtr) == 1)
+    {
+        if (client.acctNum != 0)
+        {
+            totalAccounts++;
+            totalBalance += client.balance;
+
+            if (first)
+            {
+                maxBalance = minBalance = client.balance;
+                first = 0;
+            }
+            else
+            {
+                if (client.balance > maxBalance)
+                    maxBalance = client.balance;
+                if (client.balance < minBalance)
+                    minBalance = client.balance;
+            }
+        }
+    }
+    printf("\nTotal Active Accounts: %d\n", totalAccounts);
+    printf("Total Bank Balance: %.2f\n", totalBalance);
+    printf("Highest Balance: %.2f\n", maxBalance);
+    printf("Lowest Balance: %.2f\n", minBalance);
+}
